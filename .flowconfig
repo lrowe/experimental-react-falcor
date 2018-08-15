@@ -1,0 +1,7 @@
+[include]
+<PROJECT_ROOT>/src/.*
+
+[ignore]
+<PROJECT_ROOT>/lib/.*
+<PROJECT_ROOT>/node_modules/module-deps/.*
+
