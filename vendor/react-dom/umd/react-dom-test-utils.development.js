@@ -1,4 +1,4 @@
-/** @license React v16.4.1
+/** @license React v16.4.3-alpha.0
  * react-dom-test-utils.development.js
  *
  * Copyright (c) 2013-present, Facebook, Inc.
@@ -62,7 +62,7 @@ function invariant(condition, format, a, b, c, d, e, f) {
 }
 
 // Relying on the `invariant()` implementation lets us
-// have preserve the format and params in the www builds.
+// preserve the format and params in the www builds.
 
 /**
  * Similar to invariant but only logs a warning if the condition is not met.
@@ -134,13 +134,15 @@ var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FI
 // The Symbol used to tag the ReactElement-like types. If there is no native Symbol
 // nor polyfill, then a plain number is used for performance.
 
-// Before we know whether it is functional or class
-var FunctionalComponent = 1;
+var FunctionalComponent = 0;
+var FunctionalComponentLazy = 1;
 var ClassComponent = 2;
-var HostRoot = 3; // Root of a host tree. Could be nested inside another node.
+var ClassComponentLazy = 3;
+ // Before we know whether it is functional or class
+var HostRoot = 5; // Root of a host tree. Could be nested inside another node.
  // A subtree. Could be an entry point to a different renderer.
-var HostComponent = 5;
-var HostText = 6;
+var HostComponent = 7;
+var HostText = 8;
 
 // Don't change these two values. They're used by React Dev Tools.
 var NoEffect = /*              */0;
@@ -870,7 +872,7 @@ function findAllInRenderedFiberTreeInternal(fiber, test) {
   var node = currentParent;
   var ret = [];
   while (true) {
-    if (node.tag === HostComponent || node.tag === HostText || node.tag === ClassComponent || node.tag === FunctionalComponent) {
+    if (node.tag === HostComponent || node.tag === HostText || node.tag === ClassComponent || node.tag === ClassComponentLazy || node.tag === FunctionalComponent || node.tag === FunctionalComponentLazy) {
       var publicInst = node.stateNode;
       if (test(publicInst)) {
         ret.push(publicInst);
@@ -1237,7 +1239,7 @@ var ReactTestUtils$3 = ( ReactTestUtils$2 && ReactTestUtils ) || ReactTestUtils$
 
 // TODO: decide on the top-level export form.
 // This is hacky but makes it work with both Rollup and Jest.
-var testUtils = ReactTestUtils$3.default ? ReactTestUtils$3.default : ReactTestUtils$3;
+var testUtils = ReactTestUtils$3.default || ReactTestUtils$3;
 
 return testUtils;
 

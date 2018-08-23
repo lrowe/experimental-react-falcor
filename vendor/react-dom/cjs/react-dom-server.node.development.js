@@ -1,4 +1,4 @@
-/** @license React v16.4.1
+/** @license React v16.4.3-alpha.0
  * react-dom-server.node.development.js
  *
  * Copyright (c) 2013-present, Facebook, Inc.
@@ -22,7 +22,7 @@ var stream = require('stream');
 
 // TODO: this is special because it gets imported during build.
 
-var ReactVersion = '16.4.1';
+var ReactVersion = '16.4.3-alpha.0';
 
 /**
  * Use invariant() to assert state which your program assumes to be true.
@@ -67,7 +67,7 @@ function invariant(condition, format, a, b, c, d, e, f) {
 }
 
 // Relying on the `invariant()` implementation lets us
-// have preserve the format and params in the www builds.
+// preserve the format and params in the www builds.
 
 /**
  * Similar to invariant but only logs a warning if the condition is not met.
@@ -128,6 +128,15 @@ var REACT_ASYNC_MODE_TYPE = hasSymbol ? Symbol.for('react.async_mode') : 0xeacf;
 var REACT_FORWARD_REF_TYPE = hasSymbol ? Symbol.for('react.forward_ref') : 0xead0;
 var REACT_PLACEHOLDER_TYPE = hasSymbol ? Symbol.for('react.placeholder') : 0xead1;
 
+var Resolved = 1;
+
+
+
+
+function refineResolvedThenable(thenable) {
+  return thenable._reactStatus === Resolved ? thenable._reactResult : null;
+}
+
 function getComponentName(type) {
   if (type == null) {
     // Host root, text node or just invalid type.
@@ -168,6 +177,13 @@ function getComponentName(type) {
         var renderFn = type.render;
         var functionName = renderFn.displayName || renderFn.name || '';
         return functionName !== '' ? 'ForwardRef(' + functionName + ')' : 'ForwardRef';
+    }
+    if (typeof type.then === 'function') {
+      var thenable = type;
+      var resolvedThenable = refineResolvedThenable(thenable);
+      if (resolvedThenable) {
+        return getComponentName(resolvedThenable);
+      }
     }
   }
   return null;
@@ -312,6 +328,9 @@ var warnAboutDeprecatedLifecycles = false;
 
 
 // Gather advanced timing metrics for Profiler subtrees.
+
+
+// Track which interactions trigger each commit.
 
 
 // Only used in www builds.
@@ -528,7 +547,7 @@ var properties = {};
 // disabled with `removeAttribute`. We have special logic for handling this.
 'multiple', 'muted', 'selected'].forEach(function (name) {
   properties[name] = new PropertyInfoRecord(name, BOOLEAN, true, // mustUseProperty
-  name.toLowerCase(), // attributeName
+  name, // attributeName
   null);
 } // attributeNamespace
 );
@@ -537,7 +556,7 @@ var properties = {};
 // booleans, but can also accept a string value.
 ['capture', 'download'].forEach(function (name) {
   properties[name] = new PropertyInfoRecord(name, OVERLOADED_BOOLEAN, false, // mustUseProperty
-  name.toLowerCase(), // attributeName
+  name, // attributeName
   null);
 } // attributeNamespace
 );
@@ -545,7 +564,7 @@ var properties = {};
 // These are HTML attributes that must be positive numbers.
 ['cols', 'rows', 'size', 'span'].forEach(function (name) {
   properties[name] = new PropertyInfoRecord(name, POSITIVE_NUMERIC, false, // mustUseProperty
-  name.toLowerCase(), // attributeName
+  name, // attributeName
   null);
 } // attributeNamespace
 );
@@ -1939,6 +1958,13 @@ var validateProperty$1 = function () {};
       return false;
     }
 
+    // Warn when passing the strings 'false' or 'true' into a boolean prop
+    if ((value === 'false' || value === 'true') && propertyInfo !== null && propertyInfo.type === BOOLEAN) {
+      warning$1(false, 'Received the string `%s` for the boolean attribute `%s`. ' + '%s ' + 'Did you mean %s={%s}?', value, name, value === 'false' ? 'The browser will interpret it as a truthy value.' : 'Although this works, it will not work as expected if you pass the string "false".', name, value);
+      warnedProperties$1[name] = true;
+      return true;
+    }
+
     return true;
   };
 }
@@ -2193,14 +2219,11 @@ function flattenOptionChildren(children) {
     if (child == null) {
       return;
     }
-    if (typeof child === 'string' || typeof child === 'number') {
-      content += child;
-    } else {
-      {
-        if (!didWarnInvalidOptionChildren) {
-          didWarnInvalidOptionChildren = true;
-          warningWithoutStack$1(false, 'Only strings and numbers are supported as <option> children.');
-        }
+    content += child;
+    {
+      if (!didWarnInvalidOptionChildren && typeof child !== 'string' && typeof child !== 'number') {
+        didWarnInvalidOptionChildren = true;
+        warning$1(false, 'Only strings and numbers are supported as <option> children.');
       }
     }
   });
@@ -3056,7 +3079,7 @@ var ReactDOMServer = ( ReactDOMServerNode$1 && ReactDOMServerNode ) || ReactDOMS
 
 // TODO: decide on the top-level export form.
 // This is hacky but makes it work with both Rollup and Jest
-var server_node = ReactDOMServer.default ? ReactDOMServer.default : ReactDOMServer;
+var server_node = ReactDOMServer.default || ReactDOMServer;
 
 module.exports = server_node;
   })();

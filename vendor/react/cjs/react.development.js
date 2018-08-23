@@ -1,4 +1,4 @@
-/** @license React v16.4.1
+/** @license React v16.4.3-alpha.0
  * react.development.js
  *
  * Copyright (c) 2013-present, Facebook, Inc.
@@ -20,7 +20,7 @@ var checkPropTypes = require('prop-types/checkPropTypes');
 
 // TODO: this is special because it gets imported during build.
 
-var ReactVersion = '16.4.1';
+var ReactVersion = '16.4.3-alpha.0';
 
 // The Symbol used to tag the ReactElement-like types. If there is no native Symbol
 // nor polyfill, then a plain number is used for performance.
@@ -41,7 +41,7 @@ var MAYBE_ITERATOR_SYMBOL = typeof Symbol === 'function' && Symbol.iterator;
 var FAUX_ITERATOR_SYMBOL = '@@iterator';
 
 function getIteratorFn(maybeIterable) {
-  if (maybeIterable === null || typeof maybeIterable === 'undefined') {
+  if (maybeIterable === null || typeof maybeIterable !== 'object') {
     return null;
   }
   var maybeIterator = MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL] || maybeIterable[FAUX_ITERATOR_SYMBOL];
@@ -94,7 +94,7 @@ function invariant(condition, format, a, b, c, d, e, f) {
 }
 
 // Relying on the `invariant()` implementation lets us
-// have preserve the format and params in the www builds.
+// preserve the format and params in the www builds.
 
 // Exports ReactDOM.createRoot
 
@@ -124,6 +124,9 @@ var enableSuspense = true;
 
 
 // Gather advanced timing metrics for Profiler subtrees.
+
+
+// Track which interactions trigger each commit.
 
 
 // Only used in www builds.
@@ -475,6 +478,15 @@ var describeComponentFrame = function (name, source, ownerName) {
   return '\n    in ' + (name || 'Unknown') + sourceInfo;
 };
 
+var Resolved = 1;
+
+
+
+
+function refineResolvedThenable(thenable) {
+  return thenable._reactStatus === Resolved ? thenable._reactResult : null;
+}
+
 function getComponentName(type) {
   if (type == null) {
     // Host root, text node or just invalid type.
@@ -515,6 +527,13 @@ function getComponentName(type) {
         var renderFn = type.render;
         var functionName = renderFn.displayName || renderFn.name || '';
         return functionName !== '' ? 'ForwardRef(' + functionName + ')' : 'ForwardRef';
+    }
+    if (typeof type.then === 'function') {
+      var thenable = type;
+      var resolvedThenable = refineResolvedThenable(thenable);
+      if (resolvedThenable) {
+        return getComponentName(resolvedThenable);
+      }
     }
   }
   return null;
@@ -1256,8 +1275,6 @@ function createContext(defaultValue, calculateChangedBits) {
     // Secondary renderers store their context values on separate fields.
     _currentValue: defaultValue,
     _currentValue2: defaultValue,
-    _changedBits: 0,
-    _changedBits2: 0,
     // These are circular
     Provider: null,
     Consumer: null,
@@ -1277,6 +1294,24 @@ function createContext(defaultValue, calculateChangedBits) {
   }
 
   return context;
+}
+
+function lazy(ctor) {
+  var thenable = null;
+  return {
+    then: function (resolve, reject) {
+      if (thenable === null) {
+        // Lazily create thenable by wrapping in an extra thenable.
+        thenable = ctor();
+        ctor = null;
+      }
+      return thenable.then(resolve, reject);
+    },
+
+    // React uses these fields to store the result.
+    _reactStatus: -1,
+    _reactResult: null
+  };
 }
 
 function forwardRef(render) {
@@ -1301,7 +1336,7 @@ function forwardRef(render) {
 function isValidElementType(type) {
   return typeof type === 'string' || typeof type === 'function' ||
   // Note: its typeof might be other than 'symbol' or 'number' if it's a polyfill.
-  type === REACT_FRAGMENT_TYPE || type === REACT_ASYNC_MODE_TYPE || type === REACT_PROFILER_TYPE || type === REACT_STRICT_MODE_TYPE || type === REACT_PLACEHOLDER_TYPE || typeof type === 'object' && type !== null && (type.$$typeof === REACT_PROVIDER_TYPE || type.$$typeof === REACT_CONTEXT_TYPE || type.$$typeof === REACT_FORWARD_REF_TYPE);
+  type === REACT_FRAGMENT_TYPE || type === REACT_ASYNC_MODE_TYPE || type === REACT_PROFILER_TYPE || type === REACT_STRICT_MODE_TYPE || type === REACT_PLACEHOLDER_TYPE || typeof type === 'object' && type !== null && (typeof type.then === 'function' || type.$$typeof === REACT_PROVIDER_TYPE || type.$$typeof === REACT_CONTEXT_TYPE || type.$$typeof === REACT_FORWARD_REF_TYPE);
 }
 
 /**
@@ -1619,6 +1654,7 @@ var React = {
 
 if (enableSuspense) {
   React.Placeholder = REACT_PLACEHOLDER_TYPE;
+  React.lazy = lazy;
 }
 
 
@@ -1631,7 +1667,7 @@ var React$3 = ( React$2 && React ) || React$2;
 
 // TODO: decide on the top-level export form.
 // This is hacky but makes it work with both Rollup and Jest.
-var react = React$3.default ? React$3.default : React$3;
+var react = React$3.default || React$3;
 
 module.exports = react;
   })();

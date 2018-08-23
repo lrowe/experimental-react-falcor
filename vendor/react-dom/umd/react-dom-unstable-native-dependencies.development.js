@@ -1,4 +1,4 @@
-/** @license React v16.4.1
+/** @license React v16.4.3-alpha.0
  * react-dom-unstable-native-dependencies.development.js
  *
  * Copyright (c) 2013-present, Facebook, Inc.
@@ -58,7 +58,7 @@ function invariant(condition, format, a, b, c, d, e, f) {
 }
 
 // Relying on the `invariant()` implementation lets us
-// have preserve the format and params in the www builds.
+// preserve the format and params in the www builds.
 
 {
   // In DEV mode, we swap out invokeGuardedCallback for a special version
@@ -88,6 +88,38 @@ function invariant(condition, format, a, b, c, d, e, f) {
     
   }
 }
+
+/**
+ * Call a function while guarding against errors that happens within it.
+ * Returns an error if it throws, otherwise null.
+ *
+ * In production, this is implemented using a try-catch. The reason we don't
+ * use a try-catch directly is so that we can swap out a different
+ * implementation in DEV mode.
+ *
+ * @param {String} name of the guard to use for logging or debugging
+ * @param {Function} func The function to invoke
+ * @param {*} context The context to use when calling the function
+ * @param {...*} args Arguments for function
+ */
+
+
+/**
+ * Same as invokeGuardedCallback, but instead of returning an error, it stores
+ * it in a global so it can be rethrown by `rethrowCaughtError` later.
+ * TODO: See if caughtError and rethrowError can be unified.
+ *
+ * @param {String} name of the guard to use for logging or debugging
+ * @param {Function} func The function to invoke
+ * @param {*} context The context to use when calling the function
+ * @param {...*} args Arguments for function
+ */
+
+
+/**
+ * During execution of guarded functions we will capture the first error which
+ * we will rethrow to be handled by the top level error handler.
+ */
 
 /**
  * Similar to invariant but only logs a warning if the condition is not met.
@@ -137,17 +169,14 @@ var getFiberCurrentPropsFromNode = null;
 var getInstanceFromNode = null;
 var getNodeFromInstance = null;
 
-var injection = {
-  injectComponentTree: function (Injected) {
-    getFiberCurrentPropsFromNode = Injected.getFiberCurrentPropsFromNode;
-    getInstanceFromNode = Injected.getInstanceFromNode;
-    getNodeFromInstance = Injected.getNodeFromInstance;
-
-    {
-      !(getNodeFromInstance && getInstanceFromNode) ? warningWithoutStack$1(false, 'EventPluginUtils.injection.injectComponentTree(...): Injected ' + 'module is missing getNodeFromInstance or getInstanceFromNode.') : void 0;
-    }
+function setComponentTree(getFiberCurrentPropsFromNodeImpl, getInstanceFromNodeImpl, getNodeFromInstanceImpl) {
+  getFiberCurrentPropsFromNode = getFiberCurrentPropsFromNodeImpl;
+  getInstanceFromNode = getInstanceFromNodeImpl;
+  getNodeFromInstance = getNodeFromInstanceImpl;
+  {
+    !(getNodeFromInstance && getInstanceFromNode) ? warningWithoutStack$1(false, 'EventPluginUtils.setComponentTree(...): Injected ' + 'module is missing getNodeFromInstance or getInstanceFromNode.') : void 0;
   }
-};
+}
 
 var validateEventDispatches = void 0;
 {
@@ -244,11 +273,9 @@ function hasDispatches(event) {
 }
 
 // Before we know whether it is functional or class
-
-
  // Root of a host tree. Could be nested inside another node.
  // A subtree. Could be an entry point to a different renderer.
-var HostComponent = 5;
+var HostComponent = 7;
 
 function getParent(inst) {
   do {
@@ -1619,11 +1646,14 @@ var ResponderEventPlugin = {
 };
 
 // This is used by react-native-web.
-var injectComponentTree = injection.injectComponentTree;
+function injectComponentTree(ComponentTree) {
+  setComponentTree(ComponentTree.getFiberCurrentPropsFromNode, ComponentTree.getInstanceFromNode, ComponentTree.getNodeFromInstance);
+}
+
 // Inject react-dom's ComponentTree into this module.
 var ReactDOMComponentTree = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ReactDOMComponentTree;
 
-injectComponentTree(ReactDOMComponentTree);
+setComponentTree(ReactDOMComponentTree.getFiberCurrentPropsFromNode, ReactDOMComponentTree.getInstanceFromNode, ReactDOMComponentTree.getNodeFromInstance);
 
 var ReactDOMUnstableNativeDependencies = Object.freeze({
 	injectComponentTree: injectComponentTree,
