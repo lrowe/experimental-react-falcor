@@ -1,14 +1,17 @@
 function dataUrlFromRequire(name) {
-  const __m = require(name);
-  const defaultExport = `
-const __m = require('${name}');
-export default __m;`;
-  const value =
-    typeof __m !== "object" || __m === null || Array.isArray(__m)
-      ? defaultExport
-      : `${defaultExport}
-export const { ${Object.keys(__m).join(", ")} } = __m;`;
-  return `data:application/javascript,${encodeURI(value)}`;
+  const m = require(name);
+  const source =
+    typeof m !== "object" ||
+    m === null ||
+    Array.isArray(m) ||
+    Object.keys(m).length === 0
+      ? `export default require(${JSON.stringify(name)});`
+      : `
+const __m = require(${JSON.stringify(name)});
+export const { ${Object.keys(m).join(", ")} } = __m;
+export default ${m.default !== undefined ? "default" : "__m"};
+`;
+  return `data:application/javascript,${encodeURI(source)}`;
 }
 
 module.exports = function replaceImport(
