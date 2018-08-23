@@ -24,10 +24,8 @@ class App extends Component<{||}, {| show: boolean |}> {
     }
     return (
       <div className="App">
-        <Placeholder ms={100}>
-          {didTimeout =>
-            didTimeout ? <span>timeout</span> : <Loloromo path={lolomoPath} />
-          }
+        <Placeholder delayMs={100} fallback={<span>timeout</span>}>
+          <Loloromo path={lolomoPath} />
         </Placeholder>
       </div>
     );
