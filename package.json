@@ -7,11 +7,12 @@
     "falcor-json-graph": "^2.2.1",
     "falcor-path-utils": "^0.7.0",
     "react": "file:vendor/react",
-    "react-dom": "file:vendor/react-dom"
+    "react-dom": "file:vendor/react-dom",
+    "simple-cache-provider": "file:vendor/simple-cache-provider"
   },
   "scripts": {
     "flow": "flow",
-    "build-vendor": "browserify -t [ envify --NODE_ENV development ] -r react -r react-dom -r falcor -o build/bundle.js",
+    "build-vendor": "browserify -t [ envify --NODE_ENV development ] -r react -r react-dom -r simple-cache-provider -r falcor -o build/bundle.js",
     "build-app": "babel -s true -d lib/ src/",
     "build": "npm run build-vendor && npm run build-app",
     "watch": "set -e\ntrap 'kill $(jobs -pr)' SIGINT SIGTERM EXIT\npython -m SimpleHTTPServer &\nfswatch -0 src/ | xargs -0 -n 1 -I {} npm run build-app &\n wait $(jobs -pr)"
@@ -19,6 +20,7 @@
   "devDependencies": {
     "@babel/cli": "^7.0.0-rc.2",
     "@babel/core": "^7.0.0-rc.2",
+    "@babel/plugin-syntax-dynamic-import": "^7.0.0-rc.2",
     "@babel/preset-flow": "^7.0.0-rc.2",
     "@babel/preset-react": "^7.0.0-rc.2",
     "babel-plugin-module-rewrite": "^0.2.0",
@@ -31,6 +33,7 @@
   },
   "babel": {
     "plugins": [
+      "@babel/plugin-syntax-dynamic-import",
       "transform-class-properties",
       [
         "module-rewrite",
