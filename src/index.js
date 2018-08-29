@@ -4,6 +4,8 @@ import React from "react";
 import { unstable_AsyncMode as AsyncMode, StrictMode } from "react";
 import ReactDOM from "react-dom";
 import App from "./App.js";
+import { Provider } from "./Falcor.js";
+import executor from "./executor.js";
 
 const root = document.getElementById("root");
 if (!root) {
@@ -13,7 +15,9 @@ if (!root) {
 ReactDOM.render(
   <StrictMode>
     <AsyncMode>
-      <App />
+      <Provider value={executor}>
+        <App />
+      </Provider>
     </AsyncMode>
   </StrictMode>,
   root

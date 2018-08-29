@@ -1,6 +1,7 @@
 // @flow
 export type Primitive = string | number | boolean | null;
 export type Key = Primitive;
+export type Path = Key[];
 
 // Types for defining your JsonGraph schema.
 export type Atom<T> = { +$type: "atom", +value: T };
@@ -63,19 +64,53 @@ export function traversePath<Base: Branch, Target: Branch, Descendant: Branch>(
   ) => BranchPath<Target, Descendant>
 ): BranchPath<Base, Descendant> {
   const result = traverser(emptyPath);
-  return pathProxy((path: any).$base, (result: any).$path);
+  return pathProxy((path: any).$base, [
+    ...(path: any).$path,
+    ...(result: any).$path
+  ]);
 }
 
+export opaque type ResolvedPath<Root: Branch, Value>: Path = Path;
+
+export type Executor = <Root: Branch, Result: {}>(
+  nameToPath: $ObjMap<Result, <V>(leaf: V) => ResolvedPath<Root, V>>
+) => Promise<Result> | Result;
+
 // Query for a fixed set of values from a point in the graph.
-export class Query<Root, Base, Result: {}> {
-  spec: (
-    base: BranchPath<Base, Base>,
-    root: BranchPath<Root, Root>
-  ) => $ObjMap<Result, <V>(leaf: V) => LeafPath<Base, V> | LeafPath<Root, V>>;
-  constructor(spec: $PropertyType<this, "spec">): void {
-    this.spec = spec;
+export class Query<Root: Branch, Base: Branch, Result: {}> {
+  basePaths: Array<[string, Path]>;
+  rootPaths: Array<[string, Path]>;
+
+  constructor(
+    spec: (
+      base: BranchPath<Base, Base>,
+      root: BranchPath<Root, Root>
+    ) => $ObjMap<Result, <V>(leaf: V) => LeafPath<Base, V> | LeafPath<Root, V>>
+  ): void {
+    const basePath = ["."];
+    const base: any = pathProxy(basePath);
+    const root: any = pathProxy();
+    const basePaths = (this.basePaths = []);
+    const rootPaths = (this.rootPaths = []);
+    for (const [name, path] of Object.entries(spec(base, root))) {
+      ((path: any).$base === basePath ? basePaths : rootPaths).push([
+        name,
+        (path: any).$path
+      ]);
+    }
   }
-  execute(path: BranchPath<Root, Base>): Result {
-    throw new Error("not implemented");
+
+  resolve(
+    path: BranchPath<Root, Base>
+  ): $ObjMap<Result, <V>(leaf: V) => ResolvedPath<Root, V>> {
+    const basePath: Path = (path: any).$path;
+    const resolved = {};
+    for (const [name, path] of this.rootPaths) {
+      resolved[name] = path;
+    }
+    for (const [name, path] of this.basePaths) {
+      resolved[name] = [...basePath, ...path];
+    }
+    return resolved;
   }
 }

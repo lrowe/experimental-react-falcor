@@ -46,7 +46,7 @@ export type Root = {|
 
 // Helpers defaulted to this graph Root
 export type PathTo<Target: Branch> = BranchPath<Root, Target>;
-export class Query<Result: {}, Base = Root> extends BaseQuery<
+export class Query<Result: {}, Base: Branch = Root> extends BaseQuery<
   Root,
   Base,
   Result
