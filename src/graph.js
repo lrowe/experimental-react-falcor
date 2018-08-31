@@ -52,5 +52,5 @@ export class Query<Result: {}, Base: Branch = Root> extends BaseQuery<
   Result
 > {}
 // should probably be opaque outside of traversPath or Query.
-export const rootPath = pathProxy<Root>();
+export const rootPath = pathProxy<Root>([]);
 export { traversePath } from "./query.js";
