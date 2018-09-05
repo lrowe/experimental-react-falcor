@@ -1,46 +1,82 @@
 // @flow
 import React, { type Node, type ComponentType } from "react";
-import { type Query, type BranchPath, type Branch } from "./query.js";
-import { createCache, createResource } from "simple-cache-provider";
+import {
+  type Query,
+  type BranchPath,
+  type Branch,
+  unwrapPathProxy
+} from "./query.js";
+import { type Model } from "falcor";
+import { type Executor } from "./Falcor.js";
 
-export let cache;
-function initCache() {
-  cache = createCache(initCache);
-}
-initCache();
+const cache = {};
 
-const executeQuery = <Root: Branch, Target: Branch, Result: {}>({
-  query,
-  path
-}: {
-  query: Query<Root, Target, Result>,
-  path: BranchPath<Root, Target>
-}): Promise<Result> => {
-  const resolved = query.resolve(path);
-  const props = {};
-  for (const [name, path] of Object.entries(resolved)) {
-    props[name] = JSON.stringify(path);
+class ModelExecutor {
+  model: Model;
+  constructor(model: Model): void {
+    this.model = model;
   }
-  return new Promise((resolve, reject) => {
-    setTimeout(resolve, 500, (props: any));
-  });
-};
+  run<Root: Branch, Target: Branch, Result: {}>(
+    query: Query<Root, Target, Result>,
+    path: BranchPath<Root, Target>
+  ): ?Result {
+    const hash = executeQueryHash(query, path);
+    const existing = cache[hash];
+    if (existing) {
+      return existing;
+    }
+    const resolved = query.resolve(path);
+    let hasValue = false;
+    let hasError = false;
+    let value;
+    let error;
+    let note;
+    let resolve;
+    let reject;
+    this.model
+      .boxValues()
+      .get(...Object.values(resolved))
+      .subscribe(
+        v => {
+          const result = query.result(path, v.json);
+          if (resolve !== undefined) {
+            delete cache[hash];
+            return resolve(result);
+          }
+          hasValue = true;
+          value = result;
+        },
+        e => {
+          if (reject !== undefined) {
+            delete cache[hash];
+            return reject(e);
+          }
+          hasError = true;
+          error = e;
+        }
+      );
+    if (hasValue) {
+      return (value: any);
+    }
+    if (hasError) {
+      throw error;
+    }
+    const promise = new Promise((promiseResolve, promiseReject) => {
+      resolve = promiseResolve;
+      reject = promiseReject;
+    });
+    cache[hash] = promise;
+    throw promise;
+  }
+}
 
-const executeQueryHash = <Root: Branch, Target: Branch, Result: {}>({
-  query,
-  path
-}: {
+const executeQueryHash = <Root: Branch, Target: Branch, Result: {}>(
   query: Query<Root, Target, Result>,
   path: BranchPath<Root, Target>
-}): string => {
-  return (path: any).$path.join(",");
+): string => {
+  return unwrapPathProxy(path).join(",");
 };
 
-const ExecuteQueryResource = createResource(executeQuery, executeQueryHash);
-
-const executor = <Root: Branch, Target: Branch, Result: {}>(
-  query: Query<Root, Target, Result>,
-  path: BranchPath<Root, Target>
-): ?Result => ExecuteQueryResource.read(cache, { query, path });
-
-export default executor;
+export default function modelExecutor(model: Model): Executor {
+  return new ModelExecutor(model);
+}
